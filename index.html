@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Tracker - Landing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+    <header class="bg-white shadow-sm py-4">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-indigo-600">Job Tracker</h1>
+            <a href="job_tracker.html" class="px-4 py-2 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition-colors">
+                Δοκίμασε την εφαρμογή
+            </a>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+        <!-- Hero Section -->
+        <section class="text-center py-16">
+            <h2 class="text-5xl font-extrabold text-gray-800 leading-tight">Οργανώστε την αναζήτηση εργασίας σας.</h2>
+            <p class="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
+                Παρακολουθήστε κάθε αίτηση, συνέντευξη και προθεσμία σε ένα μέρος. Ξεχάστε τα ακατάστατα υπολογιστικά φύλλα.
+            </p>
+            <div class="mt-8">
+                <a href="job_tracker.html" class="px-8 py-4 bg-indigo-600 text-white font-bold text-lg rounded-full shadow-lg hover:bg-indigo-700 transition-colors transform hover:scale-105 inline-block">
+                    Ξεκινήστε τώρα
+                </a>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="py-16">
+            <h3 class="text-4xl font-bold text-center text-gray-800 mb-12">Βασικά Χαρακτηριστικά</h3>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+                <div class="bg-white rounded-2xl shadow-lg p-8 text-center transform hover:scale-105 transition-transform duration-300">
+                    <div class="text-4xl text-indigo-600 mb-4">
+                        💼
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800">Παρακολούθηση Αιτήσεων</h4>
+                    <p class="mt-2 text-gray-600">
+                        Προσθέστε και παρακολουθήστε όλες τις αιτήσεις σας, από την υποβολή μέχρι την τελική απόφαση.
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg p-8 text-center transform hover:scale-105 transition-transform duration-300">
+                    <div class="text-4xl text-indigo-600 mb-4">
+                        📅
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800">Προθεσμίες & Συνεντεύξεις</h4>
+                    <p class="mt-2 text-gray-600">
+                        Ποτέ ξανά μην ξεχάσετε μια σημαντική προθεσμία ή συνέντευξη. Όλα σε ένα ημερολόγιο.
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg p-8 text-center transform hover:scale-105 transition-transform duration-300">
+                    <div class="text-4xl text-indigo-600 mb-4">
+                        ✨
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800">Premium Υπηρεσίες</h4>
+                    <p class="mt-2 text-gray-600">
+                        Αναβαθμίστε για πρόσβαση σε προηγμένα εργαλεία, όπως ανάλυση βιογραφικού και συμβουλές διαπραγμάτευσης.
+                    </p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Pricing Section -->
+        <section class="py-16 bg-white rounded-2xl shadow-xl">
+            <h3 class="text-4xl font-bold text-center text-gray-800 mb-4">Επίλεξε το πρόγραμμα που σου ταιριάζει</h3>
+            <p class="text-center text-lg text-gray-600 max-w-2xl mx-auto mb-12">
+                Αναβαθμίστε για να ξεκλειδώσετε τα πιο ισχυρά εργαλεία αναζήτησης εργασίας και να ξεχωρίσετε από το πλήθος.
+            </p>
+            <div class="grid lg:grid-cols-3 gap-8 p-6">
+                <!-- Free Plan -->
+                <div class="flex flex-col rounded-2xl border-2 border-gray-200 p-8 text-center bg-gray-50 transform hover:scale-105 transition-transform duration-300">
+                    <h4 class="text-2xl font-bold text-gray-800 mb-4">Δωρεάν</h4>
+                    <p class="text-4xl font-extrabold text-indigo-600">0€</p>
+                    <ul class="mt-6 text-gray-600 text-left space-y-3 flex-1">
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Απεριόριστη παρακολούθηση αιτήσεων</span>
+                        </li>
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Διαχείριση προθεσμιών</span>
+                        </li>
+                    </ul>
+                    <a href="job_tracker.html" class="mt-8 block w-full px-6 py-3 border border-indigo-600 text-indigo-600 rounded-full font-semibold hover:bg-indigo-600 hover:text-white transition-colors">
+                        Ξεκίνα δωρεάν
+                    </a>
+                </div>
+
+                <!-- Premium Plan -->
+                <div class="flex flex-col rounded-2xl border-2 border-indigo-600 p-8 text-center shadow-lg bg-white transform hover:scale-105 transition-transform duration-300 relative">
+                    <span class="absolute top-0 right-0 -mt-3 -mr-3 bg-indigo-600 text-white text-xs font-bold uppercase py-1 px-3 rounded-full">
+                        Προτεινόμενο
+                    </span>
+                    <h4 class="text-2xl font-bold text-gray-800 mb-4">Premium</h4>
+                    <p class="text-4xl font-extrabold text-indigo-600">4,99€<span class="text-lg text-gray-500 font-normal"> / μήνα</span></p>
+                    <ul class="mt-6 text-gray-600 text-left space-y-3 flex-1">
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Όλα τα χαρακτηριστικά του Δωρεάν</span>
+                        </li>
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Συνοδευτική Επιστολή με AI</span>
+                        </li>
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Συμβουλές Διαπραγμάτευσης</span>
+                        </li>
+                    </ul>
+                    <a href="job_tracker.html" class="mt-8 block w-full px-6 py-3 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition-colors">
+                        Αναβάθμισε τώρα
+                    </a>
+                </div>
+
+                <!-- Pro Plan -->
+                <div class="flex flex-col rounded-2xl border-2 border-gray-200 p-8 text-center bg-gray-50 transform hover:scale-105 transition-transform duration-300">
+                    <h4 class="text-2xl font-bold text-gray-800 mb-4">Pro</h4>
+                    <p class="text-4xl font-extrabold text-indigo-600">9,99€<span class="text-lg text-gray-500 font-normal"> / μήνα</span></p>
+                    <ul class="mt-6 text-gray-600 text-left space-y-3 flex-1">
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Όλα τα χαρακτηριστικά του Premium</span>
+                        </li>
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Προετοιμασία Συνέντευξης με AI</span>
+                        </li>
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Ανάλυση Βιογραφικού</span>
+                        </li>
+                    </ul>
+                    <a href="job_tracker.html" class="mt-8 block w-full px-6 py-3 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition-colors">
+                        Αναβάθμισε τώρα
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call to Action Section -->
+        <section class="bg-indigo-600 text-white rounded-2xl p-12 text-center my-12 shadow-xl">
+            <h3 class="text-3xl font-bold">Είστε έτοιμοι να οργανωθείτε;</h3>
+            <p class="mt-4 text-lg opacity-90">
+                Δοκιμάστε το Job Tracker σήμερα και κάντε το πρώτο βήμα προς την επόμενη επαγγελματική σας επιτυχία.
+            </p>
+            <a href="job_tracker.html" class="mt-6 px-8 py-4 bg-white text-indigo-600 font-bold text-lg rounded-full shadow-lg hover:bg-gray-100 transition-colors transform hover:scale-105 inline-block">
+                Ξεκινήστε δωρεάν
+            </a>
+        </section>
+    </main>
+
+    <footer class="text-center text-gray-500 py-6">
+        &copy; 2024 Job Tracker. All rights reserved.
+    </footer>
+</body>
+</html>
