@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+    </style>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase
+        let app, db, auth, userId;
+
+        // Global applications array to manage data
+        let jobApplications = [];
+
+        // Function to show a custom modal
+        window.showModal = function(title, message) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+        }
+
+        // Initialize Firebase on window load
+        window.onload = async function() {
+            try {
+                // Get global variables
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                // Initialize Firebase
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Use the initial auth token if available, otherwise sign in anonymously
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // Listen for auth state changes
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("User ID:", userId);
+                        // Display user ID for debugging and collaboration
+                        document.getElementById('user-id').textContent = userId;
+                        // Load and display applications
+                        setupRealtimeListener();
+                    } else {
+                        // Handle anonymous sign-in or sign-out
+                        userId = crypto.randomUUID();
+                        document.getElementById('user-id').textContent = `Anon ID: ${userId}`;
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase initialization or authentication failed:", error);
+            }
+        };
+
+        // Function to set up the real-time listener for job applications
+        function setupRealtimeListener() {
+            const jobAppsRef = collection(db, `/artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/users/${userId}/job_applications`);
+            onSnapshot(jobAppsRef, (snapshot) => {
+                const jobApps = [];
+                snapshot.forEach((doc) => {
+                    jobApps.push({ id: doc.id, ...doc.data() });
+                });
+                // Update the global jobApplications array with the latest data from Firestore
+                jobApplications = jobApps;
+                displayJobApplications(jobApps);
+            });
+        }
+
+        // Function to make API call to the Gemini API
+        window.callGeminiAPI = async function(prompt) {
+            const apiKey = ""; // Canvas will provide this in runtime
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const loadingIndicator = document.getElementById('loading-indicator');
+            loadingIndicator.classList.remove('hidden');
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                    }),
+                });
+                const result = await response.json();
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || "Δεν ήταν δυνατή η δημιουργία απάντησης.";
+                return text;
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                showModal('Σφάλμα', 'Παρουσιάστηκε σφάλμα κατά την επικοινωνία με την υπηρεσία AI.');
+                return "Παρουσιάστηκε σφάλμα κατά την επικοινωνία με την υπηρεσία AI.";
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        // Function to generate content based on the application data
+        window.generateContent = async function(application, action) {
+            let prompt = "";
+            let modalTitle = "";
+
+            // Check if premium features are enabled
+            const isPremium = localStorage.getItem('isPremium') === 'true';
+
+            switch (action) {
+                case 'interview-questions':
+                    if (!isPremium) {
+                        showModal('Αναβάθμιση σε Premium', 'Αυτή η λειτουργία είναι διαθέσιμη μόνο για τους χρήστες Premium. Παρακαλώ αναβαθμίστε το πακέτο σας για πλήρη πρόσβαση.');
+                        return;
+                    }
+                    modalTitle = 'Πιθανές Ερωτήσεις Συνέντευξης';
+                    prompt = `Γράψε πιθανές ερωτήσεις για μια συνέντευξη για τη θέση "${application.jobTitle}" στην εταιρεία "${application.company}". Ημερομηνία υποβολής: ${application.dateApplied}. Περιέγραψε εν συντομία την εταιρεία και τη θέση, και μετά γράψε 5-7 ερωτήσεις.`;
+                    break;
+                case 'follow-up-email':
+                    modalTitle = 'Πρόχειρο Email Παρακολούθησης';
+                    prompt = `Γράψε ένα σύντομο και ευγενικό email παρακολούθησης για τη θέση "${application.jobTitle}" στην εταιρεία "${application.company}". Ημερομηνία υποβολής: ${application.dateApplied}. Το email θα πρέπει να είναι ευγενικό και επαγγελματικό.`;
+                    break;
+                case 'cover-letter':
+                    modalTitle = 'Συνοδευτική Επιστολή';
+                    prompt = `Δημιούργησε μια συνοδευτική επιστολή για τη θέση "${application.jobTitle}" στην εταιρεία "${application.company}". Ενσωμάτωσε πληροφορίες για την ημερομηνία υποβολής: ${application.dateApplied}. Η επιστολή θα πρέπει να είναι συνοπτική και επαγγελματική.`;
+                    break;
+                case 'salary-advice':
+                    if (!isPremium) {
+                        showModal('Αναβάθμιση σε Premium', 'Αυτή η λειτουργία είναι διαθέσιμη μόνο για τους χρήστες Premium. Παρακαλώ αναβαθμίστε το πακέτο σας για πλήρη πρόσβαση.');
+                        return;
+                    }
+                    modalTitle = 'Συμβουλές Διαπραγμάτευσης Μισθού';
+                    prompt = `Δώσε μερικές χρήσιμες συμβουλές για τη διαπραγμάτευση μισθού για τη θέση "${application.jobTitle}" στην εταιρεία "${application.company}".`;
+                    break;
+                case 'company-news':
+                    modalTitle = 'Πρόσφατες Ειδήσεις Εταιρείας';
+                    prompt = `Αναζήτησε τις τελευταίες ειδήσεις για την εταιρεία "${application.company}" και περίγραψέ τες σε 3-4 προτάσεις.`;
+                    break;
+            }
+
+            const responseText = await callGeminiAPI(prompt);
+            showModal(modalTitle, responseText);
+        }
+
+        // Function to display job applications
+        function displayJobApplications(jobApps) {
+            const container = document.getElementById('job-applications-container');
+            container.innerHTML = '';
+            
+            // Sort applications by date applied (newest first)
+            jobApps.sort((a, b) => new Date(b.dateApplied) - new Date(a.dateApplied));
+
+            jobApps.forEach(app => {
+                const appCard = document.createElement('div');
+                appCard.className = 'bg-white p-6 rounded-2xl shadow-lg border-l-4 border-indigo-500 flex flex-col space-y-4 transform transition-transform duration-300 hover:scale-105';
+                
+                const getStatusColor = (status) => {
+                    switch (status) {
+                        case 'Υποβλήθηκε': return 'bg-blue-100 text-blue-800';
+                        case 'Σε Εξέταση': return 'bg-yellow-100 text-yellow-800';
+                        case 'Σε Συνέντευξη': return 'bg-purple-100 text-purple-800';
+                        case 'Προσφορά': return 'bg-green-100 text-green-800';
+                        case 'Απόρριψη': return 'bg-red-100 text-red-800';
+                        default: return 'bg-gray-100 text-gray-800';
+                    }
+                };
+
+                const getStatusOptions = (currentStatus) => {
+                    const statuses = ['Υποβλήθηκε', 'Σε Εξέταση', 'Σε Συνέντευξη', 'Προσφορά', 'Απόρριψη'];
+                    return statuses.map(status => `<option value="${status}" ${status === currentStatus ? 'selected' : ''}>${status}</option>`).join('');
+                };
+
+                appCard.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">${app.jobTitle}</h3>
+                            <p class="text-lg text-gray-600">${app.company}</p>
+                            <p class="text-sm text-gray-500">
+                                <span class="font-semibold">Ημερομηνία:</span> ${app.dateApplied}
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                <span class="font-semibold">Προθεσμία:</span> ${app.deadline}
+                            </p>
+                        </div>
+                        <span class="px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(app.status)}">
+                            ${app.status}
+                        </span>
+                    </div>
+                    <div class="flex space-x-2 text-sm text-gray-500">
+                        <span class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            ${app.location}
+                        </span>
+                        <span class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            <a href="${app.jobUrl}" target="_blank" class="text-indigo-600 hover:underline">Σύνδεσμος</a>
+                        </span>
+                    </div>
+                    ${app.notes ? `<div class="bg-gray-50 rounded-lg p-3 mt-4"><p class="text-gray-700 text-sm italic">${app.notes}</p></div>` : ''}
+
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <button onclick="generateContent(getAppById('${app.id}'), 'interview-questions')" class="bg-purple-500 text-white text-xs px-3 py-1 rounded-full font-semibold hover:bg-purple-600 transition-colors">
+                            ✨ Ερωτήσεις Συνέντευξης
+                        </button>
+                        <button onclick="generateContent(getAppById('${app.id}'), 'follow-up-email')" class="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-semibold hover:bg-green-600 transition-colors">
+                            ✨ Πρόχειρο Email
+                        </button>
+                        <button onclick="generateContent(getAppById('${app.id}'), 'cover-letter')" class="bg-pink-500 text-white text-xs px-3 py-1 rounded-full font-semibold hover:bg-pink-600 transition-colors">
+                            ✨ Συνοδευτική Επιστολή
+                        </button>
+                        <button onclick="generateContent(getAppById('${app.id}'), 'salary-advice')" class="bg-yellow-500 text-white text-xs px-3 py-1 rounded-full font-semibold hover:bg-yellow-600 transition-colors">
+                            ✨ Συμβουλές Διαπραγμάτευσης
+                        </button>
+                        <button onclick="generateContent(getAppById('${app.id}'), 'company-news')" class="bg-cyan-500 text-white text-xs px-3 py-1 rounded-full font-semibold hover:bg-cyan-600 transition-colors">
+                            ✨ Ειδήσεις Εταιρείας
+                        </button>
+                        <button onclick="editApplication('${app.id}')" class="bg-indigo-500 text-white text-xs px-3 py-1 rounded-full font-semibold hover:bg-indigo-600 transition-colors">
+                            Επεξεργασία
+                        </button>
+                        <button onclick="deleteApplication('${app.id}')" class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-semibold hover:bg-red-600 transition-colors">
+                            Διαγραφή
+                        </button>
+                    </div>
+                `;
+                container.appendChild(appCard);
+            });
+        }
+
+        // Function to get application by ID
+        window.getAppById = function(id) {
+            return jobApplications.find(app => app.id === id);
+        }
+
+        // Function to handle add/edit form submission
+        window.handleFormSubmission = async function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const appData = {
+                jobTitle: form.jobTitle.value,
+                company: form.company.value,
+                dateApplied: form.dateApplied.value,
+                status: form.status.value,
+                jobUrl: form.jobUrl.value,
+                location: form.location.value,
+                deadline: form.deadline.value,
+                notes: form.notes.value,
+            };
+
+            const docId = form.dataset.docId;
+            const isEditing = !!docId;
+
+            try {
+                const jobAppsRef = collection(db, `/artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/users/${userId}/job_applications`);
+                if (isEditing) {
+                    await setDoc(doc(jobAppsRef, docId), appData);
+                    showModal('Επιτυχία', 'Η αίτηση εργασίας ενημερώθηκε επιτυχώς!');
+                } else {
+                    await addDoc(jobAppsRef, appData);
+                    showModal('Επιτυχία', 'Η αίτηση εργασίας προστέθηκε επιτυχώς!');
+                }
+            } catch (e) {
+                console.error("Error adding/updating document: ", e);
+                showModal('Σφάλμα', 'Παρουσιάστηκε σφάλμα κατά την προσθήκη/ενημέρωση της αίτησης.');
+            } finally {
+                form.reset();
+                form.removeAttribute('data-doc-id');
+                toggleForm();
+            }
+        }
+
+        // Function to edit an existing application
+        window.editApplication = async function(id) {
+            const docRef = doc(db, `/artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/users/${userId}/job_applications`, id);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const appData = docSnap.data();
+                const form = document.getElementById('application-form');
+                form.jobTitle.value = appData.jobTitle;
+                form.company.value = appData.company;
+                form.dateApplied.value = appData.dateApplied;
+                form.status.value = appData.status;
+                form.jobUrl.value = appData.jobUrl;
+                form.location.value = appData.location;
+                form.deadline.value = appData.deadline;
+                form.notes.value = appData.notes;
+                form.dataset.docId = docSnap.id;
+                toggleForm(true);
+            }
+        }
+
+        // Function to delete an application
+        window.deleteApplication = async function(id) {
+            const confirmed = window.confirm("Είστε σίγουροι ότι θέλετε να διαγράψετε αυτήν την αίτηση;");
+            if (confirmed) {
+                try {
+                    await deleteDoc(doc(db, `/artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/users/${userId}/job_applications`, id));
+                    showModal('Επιτυχία', 'Η αίτηση διαγράφηκε επιτυχώς.');
+                } catch (e) {
+                    console.error("Error deleting document: ", e);
+                    showModal('Σφάλμα', 'Παρουσιάστηκε σφάλμα κατά τη διαγραφή της αίτησης.');
+                }
+            }
+        }
+
+        // Function to toggle form visibility
+        window.toggleForm = function(show = false) {
+            const formContainer = document.getElementById('form-container');
+            const jobAppsContainer = document.getElementById('job-applications-container');
+            const toggleButton = document.getElementById('toggle-form-btn');
+            if (show || formContainer.classList.contains('hidden')) {
+                formContainer.classList.remove('hidden');
+                jobAppsContainer.classList.add('hidden');
+                toggleButton.textContent = 'Επιστροφή στις Αιτήσεις';
+            } else {
+                formContainer.classList.add('hidden');
+                jobAppsContainer.classList.remove('hidden');
+                document.getElementById('application-form').reset();
+                toggleButton.textContent = 'Προσθήκη Νέας Αίτησης';
+            }
+        }
+
+        // Function to toggle premium status
+        window.togglePremium = function() {
+            const isPremium = localStorage.getItem('isPremium') === 'true';
+            localStorage.setItem('isPremium', !isPremium);
+            updatePremiumStatus();
+            showModal('Κατάσταση Premium', `Η κατάσταση Premium είναι τώρα: ${!isPremium ? 'ΕΝΕΡΓΗ' : 'ΑΝΕΝΕΡΓΗ'}.`);
+        }
+
+        // Function to update premium status indicator
+        window.updatePremiumStatus = function() {
+            const statusIndicator = document.getElementById('premium-status');
+            const isPremium = localStorage.getItem('isPremium') === 'true';
+            if (isPremium) {
+                statusIndicator.textContent = 'Premium Ενεργό';
+                statusIndicator.className = 'bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xs font-semibold';
+            } else {
+                statusIndicator.textContent = 'Δωρεάν Χρήστης';
+                statusIndicator.className = 'bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold';
+            }
+        }
+
+        // Function to change language
+        window.changeLanguage = function(lang) {
+            // This is a placeholder. A real implementation would change text content on the page.
+            localStorage.setItem('language', lang);
+            showModal('Γλώσσα', `Η γλώσσα άλλαξε σε: ${lang === 'en' ? 'Αγγλικά' : 'Ελληνικά'}`);
+        }
+    </script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="hidden fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl flex items-center space-x-4">
+            <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-700 font-semibold">Παρακαλώ περιμένετε...</p>
+        </div>
+    </div>
+
+    <!-- Modal for messages -->
+    <div id="modal" class="hidden fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 z-50">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg mx-auto p-6 relative">
+            <h2 id="modal-title" class="text-2xl font-bold text-gray-800 mb-4">Τίτλος</h2>
+            <p id="modal-message" class="text-gray-600 mb-6 whitespace-pre-line"></p>
+            <div class="flex justify-end">
+                <button onclick="document.getElementById('modal').classList.add('hidden')" class="px-6 py-2 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition-colors">
+                    Κλείσιμο
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="container mx-auto px-6 py-12">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-md">
+            <div class="mb-4 md:mb-0">
+                <h1 class="text-4xl font-extrabold text-indigo-600">Job Tracker</h1>
+                <p class="text-gray-500">Οργάνωσε τις αιτήσεις εργασίας σου</p>
+                <div class="mt-2 text-sm text-gray-400">
+                    <span class="font-semibold">User ID:</span> <span id="user-id" class="break-words">...</span>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-4">
+                <span id="premium-status" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold">
+                    Δωρεάν Χρήστης
+                </span>
+                <button onclick="togglePremium()" class="px-4 py-2 bg-yellow-400 text-yellow-900 rounded-full font-semibold hover:bg-yellow-500 transition-colors">
+                    Εναλλαγή Premium
+                </button>
+                <button onclick="changeLanguage('el')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-300 transition-colors">
+                    Ελληνικά
+                </button>
+                <button onclick="changeLanguage('en')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-300 transition-colors">
+                    English
+                </button>
+            </div>
+        </header>
+
+        <button id="toggle-form-btn" onclick="toggleForm()" class="w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition-colors mb-8 shadow-lg">
+            Προσθήκη Νέας Αίτησης
+        </button>
+
+        <!-- Form Container -->
+        <div id="form-container" class="hidden bg-white p-8 rounded-2xl shadow-lg mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Προσθήκη / Επεξεργασία Αίτησης</h2>
+            <form id="application-form" onsubmit="handleFormSubmission(event)" class="space-y-4">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="jobTitle" class="block text-sm font-semibold text-gray-700">Τίτλος Εργασίας</label>
+                        <input type="text" id="jobTitle" name="jobTitle" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50 p-2">
+                    </div>
+                    <div>
+                        <label for="company" class="block text-sm font-semibold text-gray-700">Εταιρεία</label>
+                        <input type="text" id="company" name="company" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50 p-2">
+                    </div>
+                    <div>
+                        <label for="dateApplied" class="block text-sm font-semibold text-gray-700">Ημερομηνία Αίτησης</label>
+                        <input type="date" id="dateApplied" name="dateApplied" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50 p-2">
+                    </div>
+                    <div>
+                        <label for="status" class="block text-sm font-semibold text-gray-700">Κατάσταση</label>
+                        <select id="status" name="status" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50 p-2">
+                            <option value="Υποβλήθηκε">Υποβλήθηκε</option>
+                            <option value="Σε Εξέταση">Σε Εξέταση</option>
+                            <option value="Σε Συνέντευξη">Σε Συνέντευξη</option>
+                            <option value="Προσφορά">Προσφορά</option>
+                            <option value="Απόρριψη">Απόρριψη</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="jobUrl" class="block text-sm font-semibold text-gray-700">Σύνδεσμος Αγγελίας</label>
+                        <input type="url" id="jobUrl" name="jobUrl" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50 p-2">
+                    </div>
+                    <div>
+                        <label for="location" class="block text-sm font-semibold text-gray-700">Τοποθεσία</label>
+                        <input type="text" id="location" name="location" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50 p-2">
+                    </div>
+                    <div>
+                        <label for="deadline" class="block text-sm font-semibold text-gray-700">Προθεσμία</label>
+                        <input type="date" id="deadline" name="deadline" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50 p-2">
+                    </div>
+                </div>
+                <div>
+                    <label for="notes" class="block text-sm font-semibold text-gray-700">Σημειώσεις</label>
+                    <textarea id="notes" name="notes" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50 p-2"></textarea>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="toggleForm()" class="px-4 py-2 border border-gray-300 rounded-full font-semibold text-gray-700 hover:bg-gray-100 transition-colors">
+                        Ακύρωση
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition-colors">
+                        Αποθήκευση Αίτησης
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Job Applications List -->
+        <div id="job-applications-container" class="space-y-6">
+            <!-- Job application cards will be dynamically inserted here -->
+        </div>
+    </main>
+</body>
+</html>
